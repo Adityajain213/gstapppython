@@ -105,10 +105,12 @@ jobs:
           p = Path("buildozer.spec")
           text = p.read_text()
 
-          text = text.replace(
-              "android.accept_sdk_license = True",
-              "android.accept_sdk_license = True\nandroid.skip_update = True"
-          )
+          # Only add android.skip_update if it doesn't already exist
+          if "android.skip_update" not in text:
+            text = text.replace(
+                "android.accept_sdk_license = True",
+                "android.accept_sdk_license = True\nandroid.skip_update = True"
+            )
 
           p.write_text(text)
           PY
