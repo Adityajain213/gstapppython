@@ -8,13 +8,16 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
+
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -22,39 +25,95 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses || true
+
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
+
           sudo apt-get install -y \
-            git zip unzip openjdk-17-jdk \
-            autoconf automake libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev \
-            cmake libffi-dev libssl-dev libltdl-dev
+            git \
+            zip \
+            unzip \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            cmake \
+            libffi-dev \
+            libssl-dev \
+            libltdl-dev
+
 
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
           python -m pip install buildozer cython==0.29.34
 
-      - name: Prepare Android licenses
+
+      - name: Configure Buildozer
         run: |
-          mkdir -p "$HOME/.android"
-          touch "$HOME/.android/repositories.cfg"
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
 
-          mkdir -p "$ANDROID_HOME/licenses"
+          echo "Android SDK: $SDK"
 
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-license"
-          echo "84831b940d6a7f1c0d0b6c4f0c0b5f0e2f8b6c1d" >> "$ANDROID_HOME/licenses/android-sdk-license"
+          python - <<PY
+          from pathlib import Path
+          import os
+
+          path = Path("buildozer.spec")
+          text = path.read_text()
+
+          sdk = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
+
+          if "android.sdk_path" not in text:
+              text = text.replace(
+                  "[buildozer]",
+                  f"android.sdk_path = {sdk}\n"
+                  "android.skip_update = True\n\n"
+                  "[buildozer]",
+                  1
+              )
+
+          path.write_text(text)
+          PY
+
+          echo "--------------------------------"
+          echo "Buildozer Android configuration:"
+          grep -n \
+            "android.sdk_path\|android.skip_update\|android.api\|android.accept_sdk_license\|\[app\]\|\[buildozer\]" \
+            buildozer.spec
+          echo "--------------------------------"
+
 
       - name: Build APK
         env:
           BUILDOZER_WARN_ON_ROOT: "0"
           PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE: "0"
+
         run: |
           yes | buildozer -v android debug
+
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: InvoiceExtractor-APK
           path: bin/*.apk
+          if-no-files-found: error
