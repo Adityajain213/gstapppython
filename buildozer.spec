@@ -26,6 +26,7 @@ android.gradle_dependencies = com.google.mlkit:text-recognition:16.0.1
 android.add_src = src
 
 android.accept_sdk_license = True
+android.skip_update = True
 
 
 [buildozer]
