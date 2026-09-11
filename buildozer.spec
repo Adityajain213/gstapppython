@@ -27,6 +27,7 @@ android.add_src = src
 
 android.accept_sdk_license = True
 android.skip_update = True
+android.enable_androidx = True
 
 
 [buildozer]
